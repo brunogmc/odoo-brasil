@@ -57,6 +57,10 @@ class EletronicDocument(models.Model):
     move_id = fields.Many2one(
         'account.move', string='Fatura', readonly=True, states=STATE)
 
+    l10n_br_edoc_policy = fields.Selection(related='move_id.l10n_br_edoc_policy')
+
+    invoice_payment_state = fields.Selection(related='move_id.invoice_payment_state')
+
     document_line_ids = fields.One2many(
         'eletronic.document.line', 'eletronic_document_id', string="Linhas", copy=True)
 
@@ -650,9 +654,15 @@ class EletronicDocument(models.Model):
                               limit=limit)
         for item in nfes:
             try:
-                _logger.info('Sending edoc id: %s (number: %s) by cron' % (
-                    item.id, item.numero))
-                item.action_send_eletronic_invoice()
+                if item.l10n_br_edoc_policy == 'after_payment': 
+                    if item.invoice_payment_state == 'paid':
+                        _logger.info('Sending edoc id: %s (number: %s) by cron' % (
+                            item.id, item.numero))
+                        item.action_send_eletronic_invoice()
+                else:
+                    _logger.info('Sending edoc id: %s (number: %s) by cron' % (
+                        item.id, item.numero))
+                    item.action_send_eletronic_invoice()
             except Exception as e:
                 item.log_exception(e)
                 item.notify_user()
